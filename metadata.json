@@ -1,0 +1,8 @@
+{
+  "name": "AFD-DIAGNÓSTICO PRO",
+  "description": "Especialista em diagnóstico de TVs, amplificadores, geradores, ar-condicionados e eletrodomésticos industriais.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

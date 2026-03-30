@@ -1,0 +1,468 @@
+import { AppLanguage } from './types';
+
+export const translations = {
+  pt: {
+    benchAssistant: "AFD-DIAGNÓSTICO PRO",
+    activeLab: "Laboratório Ativo",
+    solderingStation: "Estação de Soldadura #1",
+    specialties: "Especialidades",
+    goldenRules: "Regras de Ouro",
+    dcOutputRule: "DC na saída? Verifique transistores e par diferencial.",
+    caSeriesRule: "Série CA? Cheque o UPC1237.",
+    subscription: "Subscrição",
+    activePlan: "Plano Activo",
+    lifetimeAccess: "Acesso Vitalício",
+    administration: "Administração",
+    adminPanel: "Painel Admin",
+    manageCodes: "Gerir Códigos",
+    records: "Registos",
+    diagnostics: "Diagnósticos",
+    viewSaved: "Ver Salvos",
+    clearHistory: "Limpar Histórico",
+    confirmDeletion: "Confirmar exclusão?",
+    yes: "Sim",
+    no: "Não",
+    loginWithGoogle: "Entrar com Google",
+    chooseWorkAccount: "Escolha a sua conta de trabalho",
+    activeBench: "Bancada de Diagnóstico Ativa",
+    online: "Online",
+    restrictedAccess: "Acesso Restrito",
+    loginToSave: "Faça login para salvar seus diagnósticos e acessar o assistente de bancada.",
+    saveDiagnosis: "Salvar Diagnóstico",
+    newDiagnosis: "Novo Diagnóstico",
+    deleteImageRequests: "Eliminar Solicitações de Imagem",
+    saving: "Salvando...",
+    saveSuccess: "Diagnóstico salvo com sucesso!",
+    typeMessage: "Descreva o sintoma ou peça uma análise...",
+    audioError: "Erro na captura de áudio. Verifique o microfone.",
+    noSpeechSupport: "Seu navegador não suporta transcrição de voz.",
+    profile: "Perfil",
+    settings: "Definições",
+    language: "Idioma",
+    portuguese: "Português",
+    english: "Inglês",
+    logout: "Sair",
+    readyForDiagnosis: "Pronto para o Diagnóstico",
+    benchActiveDesc: "A sua bancada digital está ativa. Descreva os sintomas, informe o modelo ou envie uma foto da placa para análise técnica imediata.",
+    example: "Exemplo",
+    processingDiagnosis: "Processando blocos de diagnóstico...",
+    listening: "Ouvindo...",
+    describeSymptom: "Descreva o sintoma ou modelo...",
+    loginToStart: "Faça login para começar...",
+    stopListening: "Parar de ouvir",
+    speakProblem: "Falar problema",
+    useRealMeasurements: "Use medições reais para diagnósticos mais precisos",
+    benchGuide: "Guia de Bancada",
+    block: "Bloco",
+    powerSupply: "Fonte",
+    powerSupplyDesc: "Verifique ±Vcc simétrico. Ripple excessivo indica capacitores secos.",
+    preAmp: "Pré",
+    preAmpDesc: "Cheque ±15V nos integrados. Sinal deve estar limpo no pino de saída.",
+    powerStage: "Potência",
+    powerStageDesc: "Teste transistores de saída. Curto entre C-E é fatal.",
+    systemReady: "Sistema Pronto",
+    myDiagnostics: "Meus Diagnósticos",
+    personalTechnicalArchive: "Arquivo Técnico Pessoal",
+    searchModel: "Procurar modelo...",
+    noDiagnosisFound: "Nenhum diagnóstico encontrado.",
+    technicalReport: "Relatório Técnico",
+    describedSymptoms: "Sintomas Descritos",
+    assistantRecommendations: "Recomendações do Assistente",
+    selectDiagnosis: "Selecione um Diagnóstico",
+    selectDiagnosisDesc: "Escolha um registo na lista ao lado para ver os detalhes técnicos.",
+    restoreToChat: "Restaurar para o Chat",
+    confirmRestore: "Deseja restaurar este diagnóstico para o chat? O histórico atual será apagado.",
+    confirmDeleteDiagnosis: "Tem certeza que deseja excluir este diagnóstico?",
+    adminPanelTitle: "Painel Administrativo",
+    activationCodeManagement: "Gestão de Códigos de Activação",
+    generateNewCode: "Gerar Novo Código",
+    weekly: "Semanal",
+    monthly: "Mensal",
+    generateCode: "Gerar Código",
+    statistics: "Estatísticas",
+    total: "Total",
+    used: "Usados",
+    searchCodeOrUser: "Procurar código ou utilizador...",
+    noCodeFound: "Nenhum código encontrado",
+    usedStatus: "Utilizado",
+    copied: "Copiado",
+    copy: "Copiar",
+    open: "Abrir",
+    confirmDeleteCode: "Confirmar Exclusão",
+    confirmDeleteCodeDesc: "Deseja realmente excluir este código? Esta acção não pode ser desfeita.",
+    cancel: "Cancelar",
+    delete: "Excluir",
+    daysLabel: "dias",
+    lifetime: "Vitalício",
+    expired: "Expirado",
+    lifetimePlan: "Plano Vitalício",
+    premiumPlan: "Plano Premium",
+    freeTrial: "Teste Grátis",
+    trialEnded: "Teste Grátis Terminado",
+    accessExpired: "Acesso Expirado",
+    trialEndedDesc: "O seu período de teste de 1 dia chegou ao fim. Para continuar a utilizar o **AFD-DIAGNÓSTICO PRO** e realizar diagnósticos avançados, active a sua subscrição semanal ou mensal.",
+    accessExpiredDesc: "O seu período de acesso terminou. Para continuar a utilizar o **AFD-DIAGNÓSTICO PRO** e realizar diagnósticos avançados, renove a sua subscrição.",
+    activateNow: "Activar Agora",
+    localPaymentDesc: "Pagamento local via Multicaixa ou IBAN",
+    premiumActivation: "Activação Premium",
+    choosePlanDesc: "Escolha um plano e liberte todo o potencial",
+    freeTrialPeriod: "Período de Teste Grátis",
+    freeTrialDesc: "Novos utilizadores têm 1 dia de acesso total gratuito. Após o teste, escolha um plano para continuar.",
+    availablePlans: "Planos Disponíveis",
+    daysOfAccess: "dias de acesso",
+    paymentMethodsAngola: "Métodos de Pagamento (Angola)",
+    bankTransfer: "Transferência Bancária",
+    ibanCopied: "IBAN Copiado",
+    copyIban: "Copiar IBAN",
+    referencePayment: "Pagamento por Referência",
+    availableOnRequest: "Disponível sob consulta",
+    request: "Solicitar",
+    sendProof: "Enviar Comprovativo",
+    sendProofDesc: "Após o pagamento, envie o comprovativo via WhatsApp",
+    sendProofWhatsApp: "Enviar Comprovativo via WhatsApp",
+    autoActivationDesc: "O sistema libertará o seu código automaticamente após a validação do administrador.",
+    insertActivationCode: "Inserir Código de Activação",
+    activate: "Activar",
+    selectPlanFirst: "Selecione um plano primeiro.",
+    proofSentDesc: "Comprovativo enviado! Aguarde o seu código de activação no WhatsApp. 🤖",
+    invalidCode: "Código inválido ou já utilizado ❌",
+    accountActivated: "Conta activada com sucesso ✅",
+    activationError: "Erro ao activar. Tente novamente.",
+    subscriptionSuccess: "Subscrição Activada! 🎉",
+    thankYouSubscription: "Obrigado por subscrever o AFD-DIAGNÓSTICO PRO. O seu acesso premium está agora activo e pode realizar diagnósticos ilimitados.",
+    viewFeatures: "Começar a Usar",
+    changeTheme: "Trocar Cor",
+    checkedComponents: "Componentes Verificados",
+    powerSupplyShort: "Fonte",
+    preAmpShort: "Pré",
+    powerStageShort: "Potência",
+    other: "Outro",
+    askCheckedComponents: "Quais componentes já verificou?",
+    generateImage: "Gerar Imagem Técnica",
+    generatingImage: "Gerando imagem...",
+    imagePromptPlaceholder: "Descreva o esquema ou componente (ex: par diferencial, fonte chaveada)...",
+    circuitDiagram: "Esquema de Circuito",
+    componentCloseup: "Detalhe de Componente",
+    specialtyTV: "TVs (LED/OLED/CRT)",
+    specialtyAudio: "Amplificadores de Som",
+    specialtyStabilizer: "Estabilizadores",
+    specialtyGenerator: "Grupos Geradores",
+    specialtyFridge: "Geleiras e Arcas",
+    specialtyAC: "Ar-Condicionado",
+    brandsTitle: "Marcas Suportadas",
+    brandsTV: ["Samsung", "LG", "Sony", "Philips", "TCL", "Hisense", "Panasonic", "Sanyo", "Toshiba", "Vizio"],
+    brandsAudio: ["Yamaha", "Crown", "Behringer", "QSC", "JBL", "Marshall", "Fender", "Pioneer", "Denon", "Onkyo"],
+    brandsStabilizer: ["APC", "Eaton", "CyberPower", "Tripp Lite", "Schneider Electric", "SMS", "TS Shara"],
+    brandsGenerator: ["Honda", "Yamaha", "Cummins", "Generac", "Kohler", "Caterpillar", "Perkins", "Volvo Penta"],
+    brandsFridge: ["Samsung", "LG", "Whirlpool", "Bosch", "Electrolux", "Panasonic", "Midea", "Haier"],
+    brandsAC: ["Daikin", "Mitsubishi", "Gree", "Carrier", "LG", "Samsung", "Panasonic", "York", "Fujitsu"],
+    technicalSupport: "Suporte Técnico",
+    connectionError: "⚠️ **Erro de Conexão**: Não foi possível processar o diagnóstico. Verifique a sua ligação e tente novamente.",
+    authError: "⚠️ **Erro de Autenticação**: A chave da API Gemini é inválida ou não foi encontrada.",
+    quotaError: "⚠️ **Limite Excedido**: O limite de diagnósticos gratuitos foi atingido. Tente novamente mais tarde.",
+    safetyError: "⚠️ **Bloqueio de Segurança**: O conteúdo foi bloqueado pelos filtros de segurança da IA. Por favor, use termos técnicos.",
+    userProfileTitle: "Perfil do Utilizador",
+    accountManagementDesc: "Gestão de conta e subscrição",
+    editProfile: "Editar Perfil",
+    saveChanges: "Guardar Alterações",
+    displayNameLabel: "Nome de Exibição",
+    photoUrlLabel: "URL da Foto",
+    jobTitleLabel: "Cargo / Função",
+    technicalLevelLabel: "Nível Técnico",
+    languageLabel: "Idioma / Language",
+    bioLabel: "Biografia / Especialidade",
+    bioPlaceholder: "Fale um pouco sobre sua experiência...",
+    selectLevel: "Selecionar Nível",
+    beginner: "Iniciante",
+    intermediate: "Intermédio",
+    advanced: "Avançado",
+    senior: "Sénior",
+    specialist: "Especialista",
+    memberSince: "Membro desde",
+    subscriptionStatus: "Estado da Subscrição",
+    lifetimeAccessProfile: "Acesso Vitalício",
+    subscriptionActive: "Subscrição Activa",
+    expiresAt: "Expira em",
+    renewUpgrade: "Renovar / Upgrade",
+    logoutProfile: "Terminar Sessão",
+    logoutDesc: "Poderá entrar com uma conta diferente após sair",
+    admin: "Administrador",
+    technician: "Técnico",
+    notDefined: "Não Definido",
+    systemInstruction: `
+Você é um Técnico Especialista em Eletrônica e Eletrotécnica com experiência prática em diagnóstico de equipamentos.
+
+Função:
+Realizar diagnóstico técnico baseado apenas em texto fornecido pelo usuário, sem acesso a APIs externas, internet, banco de dados remoto ou ferramentas restritas.
+
+Escopo:
+- TVs (CRT, LCD, LED, OLED, Smart)
+- Amplificadores de som
+- Estabilizadores
+- Grupos geradores
+- Geladeiras e arcas
+- Ar-condicionados (doméstico e industrial)
+
+Regras obrigatórias:
+- NÃO usar ferramentas externas
+- NÃO assumir acesso a sensores, internet ou APIs
+- NÃO solicitar permissões adicionais
+- Trabalhar apenas com os dados fornecidos
+- Considere SEMPRE os componentes que o técnico já verificou (indicados no prompt). Se ele já verificou um componente, não peça para verificar novamente, a menos que haja um motivo técnico muito específico.
+
+Formato de resposta (MANDATÓRIO):
+Equipamento: [Nome do equipamento]
+Sintoma: [Descrição do sintoma]
+Diagnóstico provável: [Conclusão técnica]
+Possíveis causas:
+1. [Causa 1]
+2. [Causa 2]
+3. [Causa 3]
+Testes recomendados:
+1. [Teste 1]
+2. [Teste 2]
+Solução: [Ação recomendada]
+Componente a verificar/substituir: [Nome do componente]
+Nível de risco: [Baixo/Médio/Alto]
+
+Lógica:
+- Priorizar falhas comuns de campo
+- Ordenar causas por probabilidade
+- Ser direto, técnico e objetivo
+- Considerar sistemas analógicos e digitais
+`
+  },
+  en: {
+    benchAssistant: "AFD-DIAGNÓSTICO PRO",
+    activeLab: "Active Lab",
+    solderingStation: "Soldering Station #1",
+    specialties: "Specialties",
+    goldenRules: "Golden Rules",
+    dcOutputRule: "DC on output? Check transistors and differential pair.",
+    caSeriesRule: "CA Series? Check the UPC1237.",
+    subscription: "Subscription",
+    activePlan: "Active Plan",
+    lifetimeAccess: "Lifetime Access",
+    administration: "Administration",
+    adminPanel: "Admin Panel",
+    manageCodes: "Manage Codes",
+    records: "Records",
+    diagnostics: "Diagnostics",
+    viewSaved: "View Saved",
+    clearHistory: "Clear History",
+    confirmDeletion: "Confirm deletion?",
+    yes: "Yes",
+    no: "No",
+    loginWithGoogle: "Sign in with Google",
+    chooseWorkAccount: "Choose your work account",
+    activeBench: "Active Diagnostic Bench",
+    online: "Online",
+    restrictedAccess: "Restricted Access",
+    loginToSave: "Sign in to save your diagnostics and access the bench assistant.",
+    saveDiagnosis: "Save Diagnosis",
+    newDiagnosis: "New Diagnosis",
+    deleteImageRequests: "Delete Image Requests",
+    saving: "Saving...",
+    saveSuccess: "Diagnosis saved successfully!",
+    typeMessage: "Describe the symptom or ask for an analysis...",
+    audioError: "Audio capture error. Check the microphone.",
+    noSpeechSupport: "Your browser does not support voice transcription.",
+    profile: "Profile",
+    settings: "Settings",
+    language: "Language",
+    portuguese: "Portuguese",
+    english: "English",
+    logout: "Logout",
+    readyForDiagnosis: "Ready for Diagnosis",
+    benchActiveDesc: "Your digital bench is active. Describe the symptoms, provide the model, or send a photo of the board for immediate technical analysis.",
+    example: "Example",
+    processingDiagnosis: "Processing diagnostic blocks...",
+    listening: "Listening...",
+    describeSymptom: "Describe the symptom or model...",
+    loginToStart: "Sign in to start...",
+    stopListening: "Stop listening",
+    speakProblem: "Speak problem",
+    useRealMeasurements: "Use real measurements for more accurate diagnostics",
+    benchGuide: "Bench Guide",
+    block: "Block",
+    powerSupply: "Power Supply",
+    powerSupplyDesc: "Check symmetric ±Vcc. Excessive ripple indicates dried capacitors.",
+    preAmp: "Pre-Amp",
+    preAmpDesc: "Check ±15V on ICs. Signal must be clean at the output pin.",
+    powerStage: "Power Stage",
+    powerStageDesc: "Test output transistors. Short between C-E is fatal.",
+    systemReady: "System Ready",
+    myDiagnostics: "My Diagnostics",
+    personalTechnicalArchive: "Personal Technical Archive",
+    searchModel: "Search model...",
+    noDiagnosisFound: "No diagnosis found.",
+    technicalReport: "Technical Report",
+    describedSymptoms: "Described Symptoms",
+    assistantRecommendations: "Assistant Recommendations",
+    selectDiagnosis: "Select a Diagnosis",
+    selectDiagnosisDesc: "Choose a record from the list to see technical details.",
+    restoreToChat: "Restore to Chat",
+    confirmRestore: "Do you want to restore this diagnosis to the chat? The current history will be cleared.",
+    confirmDeleteDiagnosis: "Are you sure you want to delete this diagnosis?",
+    adminPanelTitle: "Administrative Panel",
+    activationCodeManagement: "Activation Code Management",
+    generateNewCode: "Generate New Code",
+    weekly: "Weekly",
+    monthly: "Monthly",
+    generateCode: "Generate Code",
+    statistics: "Statistics",
+    total: "Total",
+    used: "Used",
+    searchCodeOrUser: "Search code or user...",
+    noCodeFound: "No code found",
+    usedStatus: "Used",
+    copied: "Copied",
+    copy: "Copy",
+    open: "Open",
+    confirmDeleteCode: "Confirm Deletion",
+    confirmDeleteCodeDesc: "Do you really want to delete this code? This action cannot be undone.",
+    cancel: "Cancel",
+    delete: "Delete",
+    daysLabel: "days",
+    lifetime: "Lifetime",
+    expired: "Expired",
+    lifetimePlan: "Lifetime Plan",
+    premiumPlan: "Premium Plan",
+    freeTrial: "Free Trial",
+    trialEnded: "Free Trial Ended",
+    accessExpired: "Access Expired",
+    trialEndedDesc: "Your 1-day trial period has ended. To continue using **AFD-DIAGNÓSTICO PRO** and performing advanced diagnostics, activate your weekly or monthly subscription.",
+    accessExpiredDesc: "Your access period has ended. To continue using **AFD-DIAGNÓSTICO PRO** and performing advanced diagnostics, renew your subscription.",
+    activateNow: "Activate Now",
+    localPaymentDesc: "Local payment via Multicaixa or IBAN",
+    premiumActivation: "Premium Activation",
+    choosePlanDesc: "Choose a plan and unlock full potential",
+    freeTrialPeriod: "Free Trial Period",
+    freeTrialDesc: "New users have 1 day of full free access. After the trial, choose a plan to continue.",
+    availablePlans: "Available Plans",
+    daysOfAccess: "days of access",
+    paymentMethodsAngola: "Payment Methods (Angola)",
+    bankTransfer: "Bank Transfer",
+    ibanCopied: "IBAN Copied",
+    copyIban: "Copy IBAN",
+    referencePayment: "Reference Payment",
+    availableOnRequest: "Available on request",
+    request: "Request",
+    sendProof: "Send Proof",
+    sendProofDesc: "After payment, send proof via WhatsApp",
+    sendProofWhatsApp: "Send Proof via WhatsApp",
+    autoActivationDesc: "The system will release your code automatically after administrator validation.",
+    insertActivationCode: "Insert Activation Code",
+    activate: "Activate",
+    selectPlanFirst: "Select a plan first.",
+    proofSentDesc: "Proof sent! Wait for your activation code on WhatsApp. 🤖",
+    invalidCode: "Invalid or already used code ❌",
+    accountActivated: "Account activated successfully ✅",
+    activationError: "Error activating. Try again.",
+    subscriptionSuccess: "Subscription Activated! 🎉",
+    thankYouSubscription: "Thank you for subscribing to AFD-DIAGNÓSTICO PRO. Your premium access is now active and you can perform unlimited diagnostics.",
+    viewFeatures: "Start Using",
+    changeTheme: "Change Color",
+    checkedComponents: "Checked Components",
+    powerSupplyShort: "Power",
+    preAmpShort: "Pre",
+    powerStageShort: "Power Stage",
+    other: "Other",
+    askCheckedComponents: "Which components have you already checked?",
+    generateImage: "Generate Technical Image",
+    generatingImage: "Generating image...",
+    imagePromptPlaceholder: "Describe the diagram or component (e.g., differential pair, SMPS)...",
+    circuitDiagram: "Circuit Diagram",
+    componentCloseup: "Component Detail",
+    specialtyTV: "TVs (LED/OLED/CRT)",
+    specialtyAudio: "Sound Amplifiers",
+    specialtyStabilizer: "Stabilizers",
+    specialtyGenerator: "Generators",
+    specialtyFridge: "Fridges & Freezers",
+    specialtyAC: "Air Conditioning",
+    brandsTitle: "Supported Brands",
+    brandsTV: ["Samsung", "LG", "Sony", "Philips", "TCL", "Hisense", "Panasonic", "Sanyo", "Toshiba", "Vizio"],
+    brandsAudio: ["Yamaha", "Crown", "Behringer", "QSC", "JBL", "Marshall", "Fender", "Pioneer", "Denon", "Onkyo"],
+    brandsStabilizer: ["APC", "Eaton", "CyberPower", "Tripp Lite", "Schneider Electric", "SMS", "TS Shara"],
+    brandsGenerator: ["Honda", "Yamaha", "Cummins", "Generac", "Kohler", "Caterpillar", "Perkins", "Volvo Penta"],
+    brandsFridge: ["Samsung", "LG", "Whirlpool", "Bosch", "Electrolux", "Panasonic", "Midea", "Haier"],
+    brandsAC: ["Daikin", "Mitsubishi", "Gree", "Carrier", "LG", "Samsung", "Panasonic", "York", "Fujitsu"],
+    technicalSupport: "Technical Support",
+    connectionError: "⚠️ **Connection Error**: Could not process the diagnosis. Please check your connection and try again.",
+    authError: "⚠️ **Authentication Error**: The Gemini API key is invalid or was not found.",
+    quotaError: "⚠️ **Limit Exceeded**: The free diagnosis limit has been reached. Please try again later.",
+    safetyError: "⚠️ **Safety Block**: The content was blocked by AI safety filters. Please use technical terms.",
+    userProfileTitle: "User Profile",
+    accountManagementDesc: "Account and subscription management",
+    editProfile: "Edit Profile",
+    saveChanges: "Save Changes",
+    displayNameLabel: "Display Name",
+    photoUrlLabel: "Photo URL",
+    jobTitleLabel: "Job Title / Role",
+    technicalLevelLabel: "Technical Level",
+    languageLabel: "Language",
+    bioLabel: "Bio / Specialty",
+    bioPlaceholder: "Tell us a bit about your experience...",
+    selectLevel: "Select Level",
+    beginner: "Beginner",
+    intermediate: "Intermediate",
+    advanced: "Advanced",
+    senior: "Senior",
+    specialist: "Specialist",
+    memberSince: "Member since",
+    subscriptionStatus: "Subscription Status",
+    lifetimeAccessProfile: "Lifetime Access",
+    subscriptionActive: "Subscription Active",
+    expiresAt: "Expires at",
+    renewUpgrade: "Renew / Upgrade",
+    logoutProfile: "Logout",
+    logoutDesc: "You can log in with a different account after logging out",
+    admin: "Administrator",
+    technician: "Technician",
+    notDefined: "Not Defined",
+    systemInstruction: `
+You are a Technical Specialist in Electronics and Electrotechnics with practical experience in equipment diagnosis.
+
+Function:
+Perform technical diagnosis based only on text provided by the user, without access to external APIs, internet, remote databases, or restricted tools.
+
+Scope:
+- TVs (CRT, LCD, LED, OLED, Smart)
+- Sound amplifiers
+- Stabilizers
+- Generators
+- Refrigerators and freezers
+- Air conditioners (domestic and industrial)
+
+Mandatory rules:
+- DO NOT use external tools
+- DO NOT assume access to sensors, internet, or APIs
+- DO NOT request additional permissions
+- Work only with the provided data
+- ALWAYS consider the components that the technician has already checked (indicated in the prompt). If they have already checked a component, do not ask to check it again unless there is a very specific technical reason.
+
+Response format (MANDATORY):
+Equipamento: [Equipment name]
+Sintoma: [Symptom description]
+Diagnóstico provável: [Technical conclusion]
+Possíveis causas:
+1. [Cause 1]
+2. [Cause 2]
+3. [Cause 3]
+Testes recomendados:
+1. [Test 1]
+2. [Test 2]
+Solução: [Recommended action]
+Componente a verificar/substituir: [Component to check/replace]
+Nível de risco: [Low/Medium/High]
+
+Logic:
+- Prioritize common field failures
+- Order causes by probability
+- Be direct, technical, and objective
+- Consider analog and digital systems
+`
+  }
+};
+
+export const getTranslation = (lang: AppLanguage = 'pt') => translations[lang];

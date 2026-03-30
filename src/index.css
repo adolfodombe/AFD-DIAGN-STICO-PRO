@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --animate-pulse-slow: pulse-slow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-float: float 6s ease-in-out infinite;
+
+  @keyframes pulse-slow {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 0.3; }
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+}
+
+.markdown-body h1 { @apply text-xl font-bold text-orange-500 mt-4 mb-2; }
+.markdown-body h2 { @apply text-lg font-bold text-orange-400 mt-3 mb-1; }
+.markdown-body h3 { @apply text-base font-bold text-orange-300 mt-2 mb-1; }
+.markdown-body p { @apply mb-3 leading-relaxed; }
+.markdown-body ul { @apply list-disc list-inside mb-3; }
+.markdown-body ol { @apply list-decimal list-inside mb-3; }
+.markdown-body table { @apply w-full border-collapse border border-[#222] mb-4 text-xs; }
+.markdown-body th { @apply bg-[#1a1a1a] border border-[#222] p-2 text-left text-orange-500 font-bold uppercase tracking-wider; }
+.markdown-body td { @apply border border-[#222] p-2 text-[#aaa]; }
+.markdown-body strong { @apply text-orange-400 font-bold; }
+.markdown-body blockquote { @apply border-l-4 border-orange-600 pl-4 italic text-[#888] my-4; }
+.markdown-body code { @apply bg-[#1a1a1a] px-1 rounded text-orange-300 font-mono text-[13px]; }
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-[#111];
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-[#222] rounded-full hover:bg-orange-600/50 transition-colors;
+}
