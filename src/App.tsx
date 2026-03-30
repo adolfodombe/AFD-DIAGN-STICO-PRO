@@ -29,7 +29,9 @@ import {
   MicOff,
   Save,
   Palette,
-  PlusCircle
+  PlusCircle,
+  Menu,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
@@ -59,6 +61,7 @@ import {
   Timestamp,
   limit
 } from './firebase';
+import { supabase } from './lib/supabase';
 import ErrorBoundary from './components/ErrorBoundary';
 import SubscriptionGuard from './components/SubscriptionGuard';
 import { Message, UserProfile, SubscriptionType } from './types';
@@ -97,10 +100,12 @@ function FixMasterApp() {
   const [isBrandsModalOpen, setIsBrandsModalOpen] = useState(false);
   const [selectedSpecialty, setSelectedSpecialty] = useState<{ name: string, brands: string[] } | null>(null);
   const [themeColor, setThemeColor] = useState<'orange' | 'blue' | 'green' | 'purple' | 'red'>('orange');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [speechError, setSpeechError] = useState<string | null>(null);
   const [isSavingDiagnosis, setIsSavingDiagnosis] = useState(false);
+  const [supabaseStatus, setSupabaseStatus] = useState<'online' | 'offline' | 'checking'>('checking');
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [recentDiagnostics, setRecentDiagnostics] = useState<any[]>([]);
   const [diagnosticsCount, setDiagnosticsCount] = useState(0);
@@ -111,6 +116,24 @@ function FixMasterApp() {
 
   const t = getTranslation(userProfile?.language || 'pt');
   const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    const checkSupabase = async () => {
+      try {
+        const { error } = await supabase.from('_non_existent_table_just_to_check_connection_').select('id').limit(1);
+        // If it's a 401 or 404, it means we connected but the table doesn't exist, which is fine for a connection check
+        // If it's a network error, it will throw or have a specific error code
+        if (error && error.message.includes('fetch')) {
+          setSupabaseStatus('offline');
+        } else {
+          setSupabaseStatus('online');
+        }
+      } catch (err) {
+        setSupabaseStatus('offline');
+      }
+    };
+    checkSupabase();
+  }, []);
 
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -704,6 +727,9 @@ function FixMasterApp() {
           setCheckedComponents={setCheckedComponents}
           themeColor={themeColor}
           setThemeColor={setThemeColor}
+          supabaseStatus={supabaseStatus}
+          isMobileMenuOpen={isMobileMenuOpen}
+          setIsMobileMenuOpen={setIsMobileMenuOpen}
           t={t}
         />
         <PaymentModal 
@@ -802,6 +828,9 @@ interface FixMasterAppContentProps {
   setCheckedComponents: React.Dispatch<React.SetStateAction<string[]>>;
   themeColor: 'orange' | 'blue' | 'green' | 'purple' | 'red';
   setThemeColor: React.Dispatch<React.SetStateAction<'orange' | 'blue' | 'green' | 'purple' | 'red'>>;
+  supabaseStatus: 'online' | 'offline' | 'checking';
+  isMobileMenuOpen: boolean;
+  setIsMobileMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
   t: any;
 }
 
@@ -851,6 +880,9 @@ function FixMasterAppContent({
   setCheckedComponents,
   themeColor,
   setThemeColor,
+  supabaseStatus,
+  isMobileMenuOpen,
+  setIsMobileMenuOpen,
   t
 }: FixMasterAppContentProps) {
   const theme = {
@@ -928,9 +960,32 @@ function FixMasterAppContent({
 
   return (
     <div className={`flex h-screen bg-[#0a0a0a] text-[#e0e0e0] font-sans selection:${theme.bg.replace('10', '30')}`}>
+      {/* Mobile Sidebar Overlay */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
+          />
+        )}
+      </AnimatePresence>
+
       {/* Sidebar */}
-      <aside className="w-72 border-r border-[#222] bg-[#111] flex flex-col hidden md:flex">
-        <div className="p-6 border-b border-[#222] flex flex-col gap-4">
+      <aside className={`
+        w-72 border-r border-[#222] bg-[#111] flex flex-col 
+        fixed inset-y-0 left-0 z-50 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} 
+        md:relative md:translate-x-0 transition-transform duration-300 ease-in-out
+      `}>
+        <div className="p-6 border-b border-[#222] flex flex-col gap-4 relative">
+          <button 
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="md:hidden absolute top-4 right-4 p-2 text-[#555] hover:text-white transition-colors"
+          >
+            <X className="w-6 h-6" />
+          </button>
           <div className="flex items-center gap-3">
             <div className={theme.primary + " p-2 rounded-lg"}>
               <Wrench className="w-6 h-6 text-white" />
@@ -1215,7 +1270,7 @@ function FixMasterAppContent({
       {/* Main Content */}
       <main className="flex-1 flex flex-col relative">
         {/* Header */}
-        <header className="h-16 border-b border-[#222] bg-[#111]/80 backdrop-blur-md flex items-center justify-between px-6 sticky top-0 z-10">
+        <header className="h-16 border-b border-[#222] bg-[#111]/80 backdrop-blur-md flex items-center justify-between px-4 md:px-6 sticky top-0 z-10">
           <AnimatePresence>
             {saveSuccess && (
               <motion.div 
@@ -1229,41 +1284,43 @@ function FixMasterAppContent({
               </motion.div>
             )}
           </AnimatePresence>
-          <div className="flex items-center gap-4">
-            <div className={`md:hidden p-2 ${theme.primary} rounded-lg`}>
+          <div className="flex items-center gap-2 md:gap-4">
+            <button 
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden p-2 text-[#aaa] hover:text-white transition-colors"
+            >
+              {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+            <div className={`hidden md:block p-2 ${theme.primary} rounded-lg`}>
               <Wrench className="w-5 h-5 text-white" />
             </div>
-            <h2 className="font-medium text-sm text-[#aaa]">{t.activeBench}</h2>
+            <h2 className="font-medium text-xs md:text-sm text-[#aaa] truncate max-w-[120px] md:max-w-none">{t.activeBench}</h2>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 md:gap-2">
             {user && messages.length > 0 && (
               <button 
                 onClick={handleSaveDiagnosis}
                 disabled={isSavingDiagnosis}
                 className={`
-                  flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all
+                  flex items-center gap-2 px-2 md:px-3 py-1.5 rounded-lg text-[9px] md:text-[10px] font-bold uppercase tracking-wider transition-all
                   ${isSavingDiagnosis 
                     ? 'bg-[#1a1a1a] text-[#444] cursor-not-allowed' 
                     : 'bg-green-600/10 text-green-500 border border-green-500/20 hover:bg-green-600/20'}
                 `}
               >
                 {isSavingDiagnosis ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                {isSavingDiagnosis ? t.saving : t.saveDiagnosis}
+                <span className="hidden sm:inline">{isSavingDiagnosis ? t.saving : t.saveDiagnosis}</span>
               </button>
             )}
-            {user && (
-              <button 
-                onClick={() => setIsProfileModalOpen(true)}
-                className={`md:hidden p-1.5 bg-[#222] border border-[#333] rounded-full ${theme.borderHover} transition-colors`}
-              >
-                <div className={`w-6 h-6 rounded-full ${theme.primary} flex items-center justify-center text-[10px] font-bold overflow-hidden`}>
-                  {user.photoURL ? <img src={user.photoURL} alt={user.displayName || ''} referrerPolicy="no-referrer" /> : <UserIcon className="w-3 h-3" />}
-                </div>
-              </button>
-            )}
-            <div className="flex items-center gap-1.5 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full">
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full">
               <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
               <span className="text-[10px] font-mono text-green-500 uppercase tracking-tighter">{t.online}</span>
+            </div>
+            <div className={`flex items-center gap-1.5 px-2 md:px-3 py-1 ${supabaseStatus === 'online' ? 'bg-blue-500/10 border-blue-500/20' : 'bg-red-500/10 border-red-500/20'} rounded-full`}>
+              <div className={`w-1.5 h-1.5 rounded-full ${supabaseStatus === 'online' ? 'bg-blue-500 animate-pulse' : 'bg-red-500'} `} />
+              <span className={`text-[9px] md:text-[10px] font-mono ${supabaseStatus === 'online' ? 'text-blue-500' : 'text-red-500'} uppercase tracking-tighter`}>
+                {supabaseStatus === 'online' ? 'S' : 'S!'}
+              </span>
             </div>
           </div>
         </header>
@@ -1271,7 +1328,7 @@ function FixMasterAppContent({
         {/* Chat Area */}
         <div 
           ref={scrollRef}
-          className="flex-1 overflow-y-auto p-6 space-y-8 scroll-smooth"
+          className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 md:space-y-8 scroll-smooth"
         >
           {authLoading ? (
             <div className="h-full flex items-center justify-center">
@@ -1354,7 +1411,7 @@ function FixMasterAppContent({
                 animate={{ opacity: 1, y: 0 }}
                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div className={`max-w-[85%] md:max-w-[70%] space-y-2 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                <div className={`max-w-[90%] md:max-w-[70%] space-y-2 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                   {msg.image && (
                     <div className="rounded-2xl overflow-hidden border border-[#222] mb-2">
                       <img src={msg.image} alt="Upload" className="max-w-full h-auto max-h-64 object-contain bg-black" />
@@ -1470,7 +1527,7 @@ function FixMasterAppContent({
         </div>
 
         {/* Input Area */}
-        <div className="p-6 bg-[#0a0a0a] border-t border-[#222]">
+        <div className="p-4 md:p-6 bg-[#0a0a0a] border-t border-[#222]">
           <form 
             onSubmit={handleSubmit}
             className="max-w-4xl mx-auto relative"
@@ -1531,14 +1588,14 @@ function FixMasterAppContent({
               </div>
             )}
 
-            <div className={`flex items-end gap-3 bg-[#111] border border-[#222] rounded-2xl p-2 focus-within:${theme.borderActive.replace('border-', 'border-')}/50 transition-all shadow-2xl`}>
+            <div className={`flex items-end gap-2 md:gap-3 bg-[#111] border border-[#222] rounded-2xl p-2 focus-within:${theme.borderActive.replace('border-', 'border-')}/50 transition-all shadow-2xl`}>
               <button 
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className={`p-3 text-[#555] hover:${theme.text} transition-colors`}
+                className={`p-2 md:p-3 text-[#555] hover:${theme.text} transition-colors`}
                 title="Anexar foto da placa"
               >
-                <Camera className="w-6 h-6" />
+                <Camera className="w-5 h-5 md:w-6 md:h-6" />
               </button>
               <input 
                 type="file"
@@ -1553,7 +1610,7 @@ function FixMasterAppContent({
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={user ? (isRecording ? t.listening : t.describeSymptom) : t.loginToStart}
                 disabled={!user}
-                className="flex-1 bg-transparent border-none focus:ring-0 text-sm py-3 resize-none max-h-32 min-h-[44px] disabled:opacity-50"
+                className="flex-1 bg-transparent border-none focus:ring-0 text-xs md:text-sm py-2 md:py-3 resize-none max-h-32 min-h-[40px] disabled:opacity-50"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -1562,38 +1619,40 @@ function FixMasterAppContent({
                 }}
               />
 
-              <button 
-                type="button"
-                onClick={toggleSpeechRecognition}
-                disabled={!user}
-                className={`p-3 transition-all rounded-xl ${isRecording ? 'text-red-500 animate-pulse bg-red-500/10' : 'text-[#555] hover:' + theme.text}`}
-                title={isRecording ? t.stopListening : t.speakProblem}
-              >
-                {isRecording ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
-              </button>
+              <div className="flex items-center gap-0.5 md:gap-1">
+                <button 
+                  type="button"
+                  onClick={toggleSpeechRecognition}
+                  disabled={!user}
+                  className={`p-2 md:p-3 transition-all rounded-xl ${isRecording ? 'text-red-500 animate-pulse bg-red-500/10' : 'text-[#555] hover:' + theme.text}`}
+                  title={isRecording ? t.stopListening : t.speakProblem}
+                >
+                  {isRecording ? <MicOff className="w-5 h-5 md:w-6 md:h-6" /> : <Mic className="w-5 h-5 md:w-6 md:h-6" />}
+                </button>
 
-              <button 
-                type="button"
-                onClick={handleGenerateImage}
-                disabled={loading || !input.trim() || !user}
-                className={`p-3 transition-all rounded-xl ${isGeneratingImage ? 'text-blue-500 animate-pulse bg-blue-500/10' : 'text-[#555] hover:text-blue-500'}`}
-                title={t.generateImage}
-              >
-                {isGeneratingImage ? <Loader2 className="w-6 h-6 animate-spin" /> : <ImagePlus className="w-6 h-6" />}
-              </button>
+                <button 
+                  type="button"
+                  onClick={handleGenerateImage}
+                  disabled={loading || !input.trim() || !user}
+                  className={`p-2 md:p-3 transition-all rounded-xl ${isGeneratingImage ? 'text-blue-500 animate-pulse bg-blue-500/10' : 'text-[#555] hover:text-blue-500'}`}
+                  title={t.generateImage}
+                >
+                  {isGeneratingImage ? <Loader2 className="w-5 h-5 md:w-6 md:h-6 animate-spin" /> : <ImagePlus className="w-5 h-5 md:w-6 md:h-6" />}
+                </button>
 
-              <button 
-                type="submit"
-                disabled={(!input.trim() && !image) || loading}
-                className={`
-                  p-3 rounded-xl transition-all
-                  ${(!input.trim() && !image) || loading 
-                    ? 'bg-[#1a1a1a] text-[#333]' 
-                    : theme.primary + ' text-white ' + theme.hover + ' ' + theme.shadow}
-                `}
-              >
-                {loading && !isGeneratingImage ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-              </button>
+                <button 
+                  type="submit"
+                  disabled={(!input.trim() && !image) || loading}
+                  className={`
+                    p-2 md:p-3 rounded-xl transition-all
+                    ${(!input.trim() && !image) || loading 
+                      ? 'bg-[#1a1a1a] text-[#333]' 
+                      : theme.primary + ' text-white ' + theme.hover + ' ' + theme.shadow}
+                  `}
+                >
+                  {loading && !isGeneratingImage ? <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" /> : <Send className="w-4 h-4 md:w-5 md:h-5" />}
+                </button>
+              </div>
             </div>
             <p className="mt-3 text-[10px] text-[#444] text-center uppercase tracking-widest font-mono">
               {t.useRealMeasurements}
