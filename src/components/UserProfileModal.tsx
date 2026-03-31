@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   User, 
   Mail, 
+  Phone,
   Shield, 
   Zap, 
   Calendar, 
@@ -20,7 +21,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile } from '../types';
-import { db, updateDoc, doc, handleFirestoreError, OperationType } from '../firebase';
+import { supabase } from '../lib/supabase';
 
 const JOB_TITLE_SUGGESTIONS = [
   'Técnico de Som',
@@ -45,7 +46,6 @@ interface UserProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   userProfile: UserProfile | null;
-  onLogout: () => void;
   onOpenPayment: () => void;
   t: any;
 }
@@ -54,7 +54,6 @@ export default function UserProfileModal({
   isOpen, 
   onClose, 
   userProfile, 
-  onLogout,
   onOpenPayment,
   t
 }: UserProfileModalProps) {
@@ -88,26 +87,30 @@ export default function UserProfileModal({
     if (!userProfile) return;
     setIsSaving(true);
     try {
-      const userRef = doc(db, 'users', userProfile.uid);
-      await updateDoc(userRef, {
-        displayName: editData.displayName,
-        jobTitle: editData.jobTitle,
-        technicalLevel: editData.technicalLevel,
-        bio: editData.bio,
-        photoURL: editData.photoURL,
-        language: editData.language
-      });
+      const { error } = await supabase
+        .from('users')
+        .update({
+          displayName: editData.displayName,
+          jobTitle: editData.jobTitle,
+          technicalLevel: editData.technicalLevel,
+          bio: editData.bio,
+          photoURL: editData.photoURL,
+          language: editData.language
+        })
+        .eq('uid', userProfile.uid);
+
+      if (error) throw error;
       setIsEditing(false);
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `users/${userProfile.uid}`);
+      console.error('Error updating profile:', error);
     } finally {
       setIsSaving(false);
     }
   };
 
-  const formatDate = (timestamp: any) => {
-    if (!timestamp) return 'N/A';
-    const date = timestamp.toDate();
+  const formatDate = (dateStr: string | undefined) => {
+    if (!dateStr) return 'N/A';
+    const date = new Date(dateStr);
     return new Intl.DateTimeFormat('pt-AO', {
       day: '2-digit',
       month: 'long',
@@ -116,9 +119,9 @@ export default function UserProfileModal({
   };
 
   const isExpired = () => {
-    if (userProfile.subscriptionType === 'lifetime') return false;
+    if (userProfile.subscriptionType === 'admin' || userProfile.subscriptionType === 'premium' || userProfile.subscriptionType === 'lifetime') return false;
     if (!userProfile.subscriptionExpiresAt) return true;
-    return userProfile.subscriptionExpiresAt.toDate() < new Date();
+    return new Date(userProfile.subscriptionExpiresAt) < new Date();
   };
 
   return (
@@ -217,8 +220,17 @@ export default function UserProfileModal({
                 <>
                   <h3 className="text-xl font-bold text-white">{userProfile.displayName}</h3>
                   <div className="flex items-center justify-center gap-2 text-[#666] text-sm mt-1">
-                    <Mail className="w-3 h-3" />
-                    <span>{userProfile.email}</span>
+                    {userProfile.phone ? (
+                      <>
+                        <Phone className="w-3 h-3" />
+                        <span>{userProfile.phone}</span>
+                      </>
+                    ) : userProfile.email && !userProfile.email.endsWith('@phone.app') ? (
+                      <>
+                        <Mail className="w-3 h-3" />
+                        <span>{userProfile.email}</span>
+                      </>
+                    ) : null}
                   </div>
                 </>
               )}
@@ -384,7 +396,7 @@ export default function UserProfileModal({
                 <div>
                   <h4 className="font-bold text-white">{t.subscriptionStatus}</h4>
                   <p className={`text-xs ${isExpired() ? 'text-red-400' : 'text-green-400'}`}>
-                    {userProfile.subscriptionType === 'lifetime' ? t.lifetimeAccessProfile : 
+                    {(userProfile.subscriptionType === 'admin' || userProfile.subscriptionType === 'lifetime') ? t.lifetimeAccessProfile : 
                      isExpired() ? t.accessExpired : t.subscriptionActive}
                   </p>
                 </div>
@@ -394,7 +406,7 @@ export default function UserProfileModal({
               </div>
             </div>
 
-            {userProfile.subscriptionType !== 'lifetime' && (
+            {(userProfile.subscriptionType !== 'admin' && userProfile.subscriptionType !== 'lifetime') && (
               <div className="flex items-center gap-2 text-xs text-[#666] mb-4 pl-1">
                 <Clock className="w-3 h-3" />
                 <span>{t.expiresAt}: {formatDate(userProfile.subscriptionExpiresAt)}</span>
@@ -413,19 +425,6 @@ export default function UserProfileModal({
             </button>
           </div>
 
-          {/* Actions */}
-          <div className="space-y-2">
-            <button 
-              onClick={onLogout}
-              className="w-full py-4 flex items-center justify-center gap-2 text-red-400 hover:bg-red-500/5 rounded-2xl transition-all border border-transparent hover:border-red-500/20"
-            >
-              <LogOut className="w-5 h-5" />
-              <span className="font-bold">{t.logoutProfile}</span>
-            </button>
-            <p className="text-[10px] text-[#444] text-center">
-              {t.logoutDesc}
-            </p>
-          </div>
         </div>
 
         {/* Footer */}

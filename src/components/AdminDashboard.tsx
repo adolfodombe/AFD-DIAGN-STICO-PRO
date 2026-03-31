@@ -16,22 +16,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  db, 
-  collection, 
-  setDoc, 
-  getDocs, 
-  deleteDoc, 
-  doc, 
-  query, 
-  orderBy, 
-  serverTimestamp,
-  Timestamp,
-  handleFirestoreError,
-  OperationType,
-  where,
-  limit
-} from '../firebase';
+import { supabase } from '../lib/supabase';
 
 interface ActivationCode {
   id: string;
@@ -39,8 +24,8 @@ interface ActivationCode {
   days: number;
   isUsed: boolean;
   usedBy?: string;
-  usedAt?: Timestamp;
-  createdAt: Timestamp;
+  usedAt?: string;
+  createdAt: string;
 }
 
 interface AdminDashboardProps {
@@ -61,15 +46,15 @@ export default function AdminDashboard({ isOpen, onClose, t }: AdminDashboardPro
   const fetchCodes = async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, 'activationCodes'), orderBy('createdAt', 'desc'));
-      const snapshot = await getDocs(q);
-      const codesData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as ActivationCode[];
-      setCodes(codesData);
+      const { data, error } = await supabase
+        .from('activation_codes')
+        .select('*')
+        .order('createdAt', { ascending: false });
+
+      if (error) throw error;
+      setCodes(data as ActivationCode[]);
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, 'activationCodes');
+      console.error('Error fetching codes:', error);
     } finally {
       setLoading(false);
     }
@@ -86,9 +71,8 @@ export default function AdminDashboard({ isOpen, onClose, t }: AdminDashboardPro
     try {
       const prefix = selectedDays === 7 ? 'WEEK' : 'MONTH';
       
-      // Better random string generation
       const generateRandom = () => {
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Avoid ambiguous characters
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
         let result = '';
         for (let i = 0; i < 8; i++) {
           result += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -98,25 +82,29 @@ export default function AdminDashboard({ isOpen, onClose, t }: AdminDashboardPro
 
       let newCode = `${prefix}-${generateRandom()}`;
       
-      // Check for uniqueness (simple check, though collision is extremely unlikely)
-      const q = query(collection(db, 'activationCodes'), where('code', '==', newCode), limit(1));
-      const snapshot = await getDocs(q);
+      const { data: existing } = await supabase
+        .from('activation_codes')
+        .select('code')
+        .eq('code', newCode)
+        .maybeSingle();
       
-      if (!snapshot.empty) {
-        // Try one more time if collision occurs
+      if (existing) {
         newCode = `${prefix}-${generateRandom()}`;
       }
 
-      await setDoc(doc(db, 'activationCodes', newCode), {
-        code: newCode,
-        days: selectedDays,
-        isUsed: false,
-        createdAt: serverTimestamp()
-      });
+      const { error } = await supabase
+        .from('activation_codes')
+        .insert([{
+          code: newCode,
+          days: selectedDays,
+          isUsed: false,
+          createdAt: new Date().toISOString()
+        }]);
 
+      if (error) throw error;
       await fetchCodes();
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'activationCodes');
+      console.error('Error generating code:', error);
     } finally {
       setIsGenerating(false);
     }
@@ -124,11 +112,16 @@ export default function AdminDashboard({ isOpen, onClose, t }: AdminDashboardPro
 
   const deleteCode = async (id: string) => {
     try {
-      await deleteDoc(doc(db, 'activationCodes', id));
+      const { error } = await supabase
+        .from('activation_codes')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
       setCodes(codes.filter(c => c.id !== id));
       setDeletingId(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `activationCodes/${id}`);
+      console.error('Error deleting code:', error);
     }
   };
 
@@ -267,7 +260,7 @@ export default function AdminDashboard({ isOpen, onClose, t }: AdminDashboardPro
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-[10px] text-[#555] uppercase font-bold">{code.days} {t.daysLabel}</span>
                             <span className="text-[10px] text-[#333]">•</span>
-                            <span className="text-[10px] text-[#555]">{new Date(code.createdAt.toMillis()).toLocaleDateString()}</span>
+                            <span className="text-[10px] text-[#555]">{new Date(code.createdAt).toLocaleDateString()}</span>
                           </div>
                         </div>
                       </div>

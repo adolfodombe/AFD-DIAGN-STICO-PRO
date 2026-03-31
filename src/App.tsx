@@ -31,37 +31,13 @@ import {
   Palette,
   PlusCircle,
   Menu,
-  X
+  X,
+  Phone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
-import { 
-  auth, 
-  db, 
-  googleProvider, 
-  signInWithPopup, 
-  signOut, 
-  onAuthStateChanged, 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  onSnapshot, 
-  addDoc, 
-  serverTimestamp, 
-  handleFirestoreError,
-  OperationType,
-  deleteDoc,
-  doc,
-  getDocs,
-  writeBatch,
-  User,
-  getDoc,
-  setDoc,
-  Timestamp,
-  limit
-} from './firebase';
 import { supabase } from './lib/supabase';
+import { User } from '@supabase/supabase-js';
 import ErrorBoundary from './components/ErrorBoundary';
 import SubscriptionGuard from './components/SubscriptionGuard';
 import { Message, UserProfile, SubscriptionType } from './types';
@@ -89,10 +65,8 @@ function FixMasterApp() {
   const [input, setInput] = useState('');
   const [image, setImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isAdminDashboardOpen, setIsAdminDashboardOpen] = useState(false);
@@ -102,6 +76,11 @@ function FixMasterApp() {
   const [themeColor, setThemeColor] = useState<'orange' | 'blue' | 'green' | 'purple' | 'red'>('orange');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isAuthProcessing, setIsAuthProcessing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [speechError, setSpeechError] = useState<string | null>(null);
   const [isSavingDiagnosis, setIsSavingDiagnosis] = useState(false);
@@ -187,138 +166,157 @@ function FixMasterApp() {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setAuthLoading(false);
-    });
-    return () => unsubscribe();
+    const initVisitor = async () => {
+      setProfileLoading(true);
+      let visitorId = localStorage.getItem('fixmaster_visitor_id');
+      
+      if (!visitorId) {
+        visitorId = 'visitor_' + Math.random().toString(36).substring(2, 15);
+        localStorage.setItem('fixmaster_visitor_id', visitorId);
+      }
+
+      // Try to fetch profile from Supabase using visitorId
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('uid', visitorId)
+        .single();
+
+      if (error && error.code === 'PGRST116') {
+        // Create new visitor profile
+        const trialExpiry = new Date();
+        trialExpiry.setDate(trialExpiry.getDate() + 3);
+
+        const newProfile: UserProfile = {
+          uid: visitorId,
+          displayName: 'Visitante Técnico',
+          photoURL: '',
+          role: 'user',
+          subscriptionType: 'free',
+          subscriptionExpiresAt: trialExpiry.toISOString(),
+          createdAt: new Date().toISOString(),
+          language: 'pt'
+        };
+
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert([newProfile]);
+
+        if (!insertError) {
+          setUserProfile(newProfile);
+        } else {
+          // Fallback to local state if DB insert fails
+          setUserProfile(newProfile);
+        }
+      } else if (data) {
+        setUserProfile(data as UserProfile);
+      }
+      setProfileLoading(false);
+    };
+
+    initVisitor();
+
+    // Set up realtime subscription for profile if we have a visitorId
+    const visitorId = localStorage.getItem('fixmaster_visitor_id');
+    if (visitorId) {
+      const profileSubscription = supabase
+        .channel(`profile:${visitorId}`)
+        .on('postgres_changes', { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'users',
+          filter: `uid=eq.${visitorId}`
+        }, (payload) => {
+          setUserProfile(payload.new as UserProfile);
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(profileSubscription);
+      };
+    }
   }, []);
 
   useEffect(() => {
-    if (!user) {
-      setUserProfile(null);
-      setProfileLoading(false);
-      return;
-    }
+    if (!userProfile) return;
 
-    setProfileLoading(true);
-    const userDocRef = doc(db, 'users', user.uid);
+    const fetchMessages = async () => {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('userId', userProfile.uid)
+        .order('timestamp', { ascending: true });
 
-    const unsubscribe = onSnapshot(userDocRef, async (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data() as UserProfile;
-        // Force lifetime for admin email
-        if (user.email === 'adolfodombe@gmail.com') {
-          data.subscriptionType = 'lifetime';
-          data.role = 'admin';
-        }
-        setUserProfile(data);
-      } else {
-        // Create new profile with 1-day trial
-        const now = Timestamp.now();
-        const trialExpiry = new Timestamp(now.seconds + (1 * 24 * 60 * 60), 0);
-        
-        const isLifetime = user.email === 'adolfodombe@gmail.com';
-        
-        const newProfile: any = {
-          uid: user.uid,
-          email: user.email || '',
-          displayName: user.displayName || 'Técnico',
-          photoURL: user.photoURL || '',
-          role: isLifetime ? 'admin' : 'user',
-          subscriptionType: isLifetime ? 'lifetime' : 'trial',
-          createdAt: now
-        };
-
-        if (!isLifetime) {
-          newProfile.subscriptionExpiresAt = trialExpiry;
-        }
-
-        try {
-          await setDoc(userDocRef, newProfile);
-          setUserProfile(newProfile as UserProfile);
-        } catch (error) {
-          handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
-        }
+      if (!error) {
+        setMessages(data as Message[]);
       }
-      setProfileLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
-      setProfileLoading(false);
-    });
+    };
 
-    return () => unsubscribe();
-  }, [user]);
+    fetchMessages();
 
-  useEffect(() => {
-    if (!user) {
-      setMessages([]);
-      return;
-    }
+    const messagesSubscription = supabase
+      .channel(`messages:${userProfile.uid}`)
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'messages',
+        filter: `userId=eq.${userProfile.uid}`
+      }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setMessages(prev => [...prev, payload.new as Message]);
+        } else if (payload.eventType === 'DELETE') {
+          setMessages(prev => prev.filter(m => m.id !== payload.old.id));
+        }
+      })
+      .subscribe();
 
-    const path = 'messages';
-    const q = query(
-      collection(db, path),
-      where('userId', '==', user.uid),
-      orderBy('timestamp', 'asc')
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          ...data,
-          id: doc.id,
-          timestamp: data.timestamp?.toMillis() || Date.now()
-        };
-      }) as unknown as Message[];
-      setMessages(msgs);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, path);
-    });
-
-    return () => unsubscribe();
-  }, [user]);
+    return () => {
+      supabase.removeChannel(messagesSubscription);
+    };
+  }, [userProfile?.uid]);
 
   useEffect(() => {
-    if (!user) {
+    if (!userProfile) {
       setRecentDiagnostics([]);
       setDiagnosticsCount(0);
       return;
     }
 
-    const path = 'diagnostics';
-    const q = query(
-      collection(db, path),
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc'),
-      limit(3)
-    );
+    const fetchDiagnostics = async () => {
+      const { data, error, count } = await supabase
+        .from('diagnostics')
+        .select('*', { count: 'exact' })
+        .eq('userId', userProfile.uid)
+        .order('createdAt', { ascending: false })
+        .limit(3);
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date()
-      }));
-      setRecentDiagnostics(docs);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, path);
-    });
+      if (error) {
+        console.error('Error fetching diagnostics:', error);
+      } else {
+        setRecentDiagnostics(data || []);
+        setDiagnosticsCount(count || 0);
+      }
+    };
 
-    const qCount = query(
-      collection(db, path),
-      where('userId', '==', user.uid)
-    );
-    const unsubscribeCount = onSnapshot(qCount, (snapshot) => {
-      setDiagnosticsCount(snapshot.size);
-    });
+    fetchDiagnostics();
+
+    // Set up realtime subscription for diagnostics
+    const diagnosticsSubscription = supabase
+      .channel(`diagnostics:${userProfile.uid}`)
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'diagnostics',
+        filter: `userId=eq.${userProfile.uid}`
+      }, () => {
+        fetchDiagnostics();
+      })
+      .subscribe();
 
     return () => {
-      unsubscribe();
-      unsubscribeCount();
+      supabase.removeChannel(diagnosticsSubscription);
     };
-  }, [user]);
+  }, [userProfile?.uid]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -329,7 +327,7 @@ function FixMasterApp() {
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
   const handleGenerateImage = async () => {
-    if (!input.trim() || !user) return;
+    if (!input.trim() || !userProfile) return;
     
     setLoading(true);
     setIsGeneratingImage(true);
@@ -367,29 +365,29 @@ function FixMasterApp() {
 
       if (generatedImageUrl) {
         // Save user request to Firestore
-        await addDoc(collection(db, path), {
-          userId: user.uid,
+        await supabase.from('messages').insert([{
+          userId: userProfile.uid,
           role: 'user',
           content: `[Solicitação de Imagem Técnica]: ${input}`,
-          timestamp: serverTimestamp(),
-        });
+          timestamp: new Date().toISOString(),
+        }]);
 
         const assistantMessage: Message = {
-          userId: user.uid,
+          userId: userProfile.uid,
           role: 'assistant',
           content: `Aqui está a imagem técnica gerada para: **${input}**`,
-          timestamp: Date.now(),
+          timestamp: new Date().toISOString(),
           image: generatedImageUrl
         };
 
-        // Save assistant response to Firestore
-        await addDoc(collection(db, path), {
-          userId: user.uid,
+        // Save assistant response to Supabase
+        await supabase.from('messages').insert([{
+          userId: userProfile.uid,
           role: 'assistant',
           content: assistantMessage.content,
           image: generatedImageUrl,
-          timestamp: serverTimestamp(),
-        });
+          timestamp: new Date().toISOString(),
+        }]);
         
         setInput('');
       }
@@ -398,22 +396,6 @@ function FixMasterApp() {
     } finally {
       setLoading(false);
       setIsGeneratingImage(false);
-    }
-  };
-
-  const handleLogin = async () => {
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-      console.error("Login error:", error);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error("Logout error:", error);
     }
   };
 
@@ -430,8 +412,7 @@ function FixMasterApp() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) {
-      handleLogin();
+    if (!userProfile) {
       return;
     }
     if ((!input.trim() && !image) || loading) return;
@@ -440,12 +421,12 @@ function FixMasterApp() {
     if (!apiKey) {
       console.error("GEMINI_API_KEY is missing in environment");
       try {
-        await addDoc(collection(db, 'messages'), {
-          userId: user.uid,
+        await supabase.from('messages').insert([{
+          userId: userProfile.uid,
           role: 'assistant',
           content: t.authError,
-          timestamp: serverTimestamp(),
-        });
+          timestamp: new Date().toISOString(),
+        }]);
       } catch (err) {
         console.error("Failed to save error message:", err);
       }
@@ -465,18 +446,18 @@ function FixMasterApp() {
 
     const path = 'messages';
     try {
-      // Save user message to Firestore
+      // Save user message to Supabase
       const messageData: any = {
-        userId: user.uid,
+        userId: userProfile.uid,
         role: 'user',
         content: userMessageContent + componentsInfo,
-        timestamp: serverTimestamp(),
+        timestamp: new Date().toISOString(),
       };
       if (userMessageImage) {
         messageData.image = userMessageImage;
       }
 
-      await addDoc(collection(db, path), messageData);
+      await supabase.from('messages').insert([messageData]);
 
       const parts: any[] = [{ text: userMessageContent || "Analise esta imagem do amplificador para diagnóstico técnico." }];
       
@@ -508,13 +489,13 @@ function FixMasterApp() {
 
       const assistantText = response.text || t.connectionError;
 
-      // Save assistant message to Firestore
-      await addDoc(collection(db, path), {
-        userId: user.uid,
+      // Save assistant message to Supabase
+      await supabase.from('messages').insert([{
+        userId: userProfile.uid,
         role: 'assistant',
         content: assistantText,
-        timestamp: serverTimestamp(),
-      });
+        timestamp: new Date().toISOString(),
+      }]);
 
     } catch (error: any) {
       console.error("Diagnosis error details:", error);
@@ -530,14 +511,14 @@ function FixMasterApp() {
       }
 
       try {
-        await addDoc(collection(db, path), {
-          userId: user.uid,
+        await supabase.from('messages').insert([{
+          userId: userProfile.uid,
           role: 'assistant',
           content: errorMessage,
-          timestamp: serverTimestamp(),
-        });
+          timestamp: new Date().toISOString(),
+        }]);
       } catch (innerError) {
-        handleFirestoreError(innerError, OperationType.CREATE, path);
+        console.error("Failed to save error message:", innerError);
       }
     } finally {
       setLoading(false);
@@ -545,7 +526,7 @@ function FixMasterApp() {
   };
 
   const handleSaveDiagnosis = async () => {
-    if (!user || messages.length === 0) return;
+    if (!userProfile || messages.length === 0) return;
     
     setIsSavingDiagnosis(true);
     setSaveSuccess(null);
@@ -569,107 +550,84 @@ function FixMasterApp() {
         amplifierModel = modelMatch[1].trim();
       }
 
-      await addDoc(collection(db, 'diagnostics'), {
-        userId: user.uid,
+      await supabase.from('diagnostics').insert([{
+        userId: userProfile.uid,
         amplifierModel,
         symptoms: symptoms.substring(0, 5000),
         recommendations: recommendations.substring(0, 10000),
         fullHistory: messages.map(m => ({ role: m.role, content: m.content, timestamp: m.timestamp })),
-        createdAt: serverTimestamp(),
-      });
+        createdAt: new Date().toISOString(),
+      }]);
 
       setSaveSuccess("Diagnóstico salvo com sucesso!");
       setTimeout(() => setSaveSuccess(null), 3000);
     } catch (error) {
       console.error("Error saving diagnosis:", error);
-      handleFirestoreError(error, OperationType.WRITE, 'diagnostics');
     } finally {
       setIsSavingDiagnosis(false);
     }
   };
 
   const restoreDiagnosis = async (history: any[]) => {
-    if (!user) return;
+    if (!userProfile) return;
     
-    const path = 'messages';
     try {
       // 1. Clear current history
-      const q = query(collection(db, path), where('userId', '==', user.uid));
-      const snapshot = await getDocs(q);
-      const batch = writeBatch(db);
-      snapshot.docs.forEach((doc) => {
-        batch.delete(doc.ref);
-      });
+      await supabase.from('messages').delete().eq('userId', userProfile.uid);
       
       // 2. Add saved history
-      history.forEach((msg) => {
-        const docRef = doc(collection(db, path));
-        batch.set(docRef, {
-          userId: user.uid,
-          role: msg.role,
-          content: msg.content,
-          timestamp: serverTimestamp(), // Use new timestamp to keep order
-        });
-      });
+      const newMessages = history.map(msg => ({
+        userId: userProfile.uid,
+        role: msg.role,
+        content: msg.content,
+        timestamp: new Date().toISOString(),
+      }));
       
-      await batch.commit();
+      await supabase.from('messages').insert(newMessages);
+      
       setIsDiagnosticsModalOpen(false);
       setSelectedDiagnosisId(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, path);
+      console.error("Error restoring diagnosis:", error);
     }
   };
 
   const clearHistory = async () => {
-    if (!user) return;
-    const path = 'messages';
+    if (!userProfile) return;
     try {
-      const q = query(collection(db, path), where('userId', '==', user.uid));
-      const snapshot = await getDocs(q);
-      const batch = writeBatch(db);
-      snapshot.docs.forEach((doc) => {
-        batch.delete(doc.ref);
-      });
-      await batch.commit();
+      await supabase.from('messages').delete().eq('userId', userProfile.uid);
       setShowClearConfirm(false);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, path);
+      console.error("Error clearing history:", error);
     }
   };
 
   const deleteMessage = async (messageId: string) => {
-    if (!user || !messageId) return;
-    const path = 'messages';
+    if (!userProfile || !messageId) return;
     try {
-      await deleteDoc(doc(db, path, messageId));
+      await supabase.from('messages').delete().eq('id', messageId);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, path);
+      console.error("Error deleting message:", error);
     }
   };
 
   const clearImageRequests = async () => {
-    if (!user) return;
-    const path = 'messages';
+    if (!userProfile) return;
     try {
-      const q = query(
-        collection(db, path), 
-        where('userId', '==', user.uid)
-      );
-      const snapshot = await getDocs(q);
-      const batch = writeBatch(db);
-      let count = 0;
-      snapshot.docs.forEach((doc) => {
-        const data = doc.data();
-        if (data.content && data.content.includes('[Solicitação de Imagem Técnica]')) {
-          batch.delete(doc.ref);
-          count++;
-        }
-      });
-      if (count > 0) {
-        await batch.commit();
+      const { data: messagesToDelete } = await supabase
+        .from('messages')
+        .select('id')
+        .eq('userId', userProfile.uid)
+        .ilike('content', '%[Solicitação de Imagem Técnica]%');
+
+      if (messagesToDelete && messagesToDelete.length > 0) {
+        await supabase
+          .from('messages')
+          .delete()
+          .in('id', messagesToDelete.map(m => m.id));
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, path);
+      console.error("Error clearing image requests:", error);
     }
   };
 
@@ -677,7 +635,7 @@ function FixMasterApp() {
     <ErrorBoundary>
       <SubscriptionGuard 
         userProfile={userProfile} 
-        loading={authLoading || profileLoading}
+        loading={profileLoading}
         onOpenPaymentModal={() => setIsPaymentModalOpen(true)}
         t={t}
       >
@@ -688,9 +646,7 @@ function FixMasterApp() {
           image={image}
           setImage={setImage}
           loading={loading}
-          user={user}
           userProfile={userProfile}
-          authLoading={authLoading}
           showClearConfirm={showClearConfirm}
           setShowClearConfirm={setShowClearConfirm}
           isRecording={isRecording}
@@ -698,8 +654,7 @@ function FixMasterApp() {
           setSpeechError={setSpeechError}
           scrollRef={scrollRef}
           fileInputRef={fileInputRef}
-          handleLogin={handleLogin}
-          handleLogout={handleLogout}
+          profileLoading={profileLoading}
           handleImageUpload={handleImageUpload}
           handleSubmit={handleSubmit}
           clearHistory={clearHistory}
@@ -742,7 +697,6 @@ function FixMasterApp() {
           isOpen={isProfileModalOpen} 
           onClose={() => setIsProfileModalOpen(false)} 
           userProfile={userProfile} 
-          onLogout={handleLogout}
           onOpenPayment={() => setIsPaymentModalOpen(true)}
           t={t}
         />
@@ -757,7 +711,7 @@ function FixMasterApp() {
             setIsDiagnosticsModalOpen(false);
             setSelectedDiagnosisId(null);
           }} 
-          userId={user?.uid || ''}
+          userId={userProfile?.uid || ''}
           t={t}
           initialSelectedId={selectedDiagnosisId}
           onRestore={restoreDiagnosis}
@@ -789,9 +743,7 @@ interface FixMasterAppContentProps {
   image: string | null;
   setImage: React.Dispatch<React.SetStateAction<string | null>>;
   loading: boolean;
-  user: User | null;
   userProfile: UserProfile | null;
-  authLoading: boolean;
   showClearConfirm: boolean;
   setShowClearConfirm: React.Dispatch<React.SetStateAction<boolean>>;
   isRecording: boolean;
@@ -799,8 +751,7 @@ interface FixMasterAppContentProps {
   setSpeechError: React.Dispatch<React.SetStateAction<string | null>>;
   scrollRef: React.RefObject<HTMLDivElement | null>;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
-  handleLogin: () => Promise<void>;
-  handleLogout: () => Promise<void>;
+  profileLoading: boolean;
   handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSubmit: (e: React.FormEvent) => Promise<void>;
   clearHistory: () => Promise<void>;
@@ -841,9 +792,7 @@ function FixMasterAppContent({
   image,
   setImage,
   loading,
-  user,
   userProfile,
-  authLoading,
   showClearConfirm,
   setShowClearConfirm,
   isRecording,
@@ -851,8 +800,7 @@ function FixMasterAppContent({
   setSpeechError,
   scrollRef,
   fileInputRef,
-  handleLogin,
-  handleLogout,
+  profileLoading,
   handleImageUpload,
   handleSubmit,
   clearHistory,
@@ -1094,19 +1042,19 @@ function FixMasterAppContent({
                 onClick={() => setIsPaymentModalOpen(true)}
                 className={`
                   w-full p-3 rounded-xl border text-left transition-all group
-                  ${userProfile.subscriptionType === 'premium' || userProfile.subscriptionType === 'lifetime'
+                  ${userProfile.subscriptionType === 'premium' || userProfile.subscriptionType === 'admin'
                     ? 'bg-green-500/5 border-green-500/20 hover:border-green-500/40'
                     : theme.bg + ' ' + theme.border + ' ' + theme.borderHover}
                 `}
               >
                 <div className="flex items-center justify-between mb-1">
-                  <span className={`text-[10px] font-bold uppercase tracking-wider ${userProfile.subscriptionType === 'premium' || userProfile.subscriptionType === 'lifetime' ? 'text-green-500' : theme.text}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${userProfile.subscriptionType === 'premium' || userProfile.subscriptionType === 'admin' ? 'text-green-500' : theme.text}`}>
                     {userProfile.subscriptionType}
                   </span>
-                  <Zap className={`w-3 h-3 group-hover:scale-125 transition-transform ${userProfile.subscriptionType === 'premium' || userProfile.subscriptionType === 'lifetime' ? 'text-green-500' : theme.text}`} />
+                  <Zap className={`w-3 h-3 group-hover:scale-125 transition-transform ${userProfile.subscriptionType === 'premium' || userProfile.subscriptionType === 'admin' ? 'text-green-500' : theme.text}`} />
                 </div>
                 <p className="text-xs font-bold text-white">
-                  {userProfile.subscriptionType === 'lifetime' ? t.lifetimeAccess : t.activePlan}
+                  {userProfile.subscriptionType === 'admin' ? t.lifetimeAccess : t.activePlan}
                 </p>
               </button>
             </section>
@@ -1194,7 +1142,7 @@ function FixMasterAppContent({
         </div>
 
         <div className="p-4 border-t border-[#222] space-y-4">
-          {user ? (
+          {userProfile ? (
             <div className="space-y-4">
               <button 
                 onClick={clearHistory}
@@ -1208,11 +1156,13 @@ function FixMasterAppContent({
                 className="w-full flex items-center gap-3 px-2 py-2 hover:bg-[#1a1a1a] rounded-xl transition-all group"
               >
                 <div className={`w-8 h-8 rounded-full ${theme.primary} flex items-center justify-center text-xs font-bold overflow-hidden border border-[#333] group-hover:${theme.borderActive} transition-colors`}>
-                  {user.photoURL ? <img src={user.photoURL} alt={user.displayName || ''} referrerPolicy="no-referrer" /> : <UserIcon className="w-4 h-4" />}
+                  {userProfile?.photoURL ? <img src={userProfile.photoURL} alt={userProfile.displayName || ''} referrerPolicy="no-referrer" /> : <UserIcon className="w-4 h-4" />}
                 </div>
                 <div className="flex-1 min-w-0 text-left">
-                  <p className={`text-xs font-bold text-white truncate group-hover:${theme.text} transition-colors`}>{user.displayName}</p>
-                  <p className="text-[10px] text-[#555] truncate">{user.email}</p>
+                  <p className={`text-xs font-bold text-white truncate group-hover:${theme.text} transition-colors`}>{userProfile?.displayName || userProfile?.phone}</p>
+                  {userProfile?.phone && (
+                    <p className="text-[10px] text-[#555] truncate">{userProfile.phone}</p>
+                  )}
                 </div>
               </button>
               
@@ -1251,19 +1201,7 @@ function FixMasterAppContent({
                 </div>
               )}
             </div>
-          ) : (
-            <div className="space-y-3">
-              <button 
-                onClick={handleLogin}
-                className={`w-full flex items-center justify-center gap-2 py-3 ${theme.primary} text-white rounded-xl text-xs font-bold ${theme.hover} transition-all ${theme.shadow} active:scale-95`}
-              >
-                <LogIn className="w-4 h-4" /> {t.loginWithGoogle}
-              </button>
-              <p className="text-[10px] text-[#444] text-center uppercase tracking-widest">
-                {t.chooseWorkAccount}
-              </p>
-            </div>
-          )}
+          ) : null}
         </div>
       </aside>
 
@@ -1297,7 +1235,7 @@ function FixMasterAppContent({
             <h2 className="font-medium text-xs md:text-sm text-[#aaa] truncate max-w-[120px] md:max-w-none">{t.activeBench}</h2>
           </div>
           <div className="flex items-center gap-1.5 md:gap-2">
-            {user && messages.length > 0 && (
+            {userProfile && messages.length > 0 && (
               <button 
                 onClick={handleSaveDiagnosis}
                 disabled={isSavingDiagnosis}
@@ -1330,25 +1268,9 @@ function FixMasterAppContent({
           ref={scrollRef}
           className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 md:space-y-8 scroll-smooth"
         >
-          {authLoading ? (
+          {profileLoading ? (
             <div className="h-full flex items-center justify-center">
               <Loader2 className={`w-8 h-8 ${theme.text} animate-spin`} />
-            </div>
-          ) : !user ? (
-            <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto space-y-6">
-              <div className={`w-20 h-20 bg-[#111] border border-[#222] rounded-3xl flex items-center justify-center shadow-2xl ${theme.glow}`}>
-                <ShieldAlert className={`w-10 h-10 ${theme.text}`} />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-xl font-bold text-white">{t.restrictedAccess}</h3>
-                <p className="text-sm text-[#666]">{t.loginToSave}</p>
-              </div>
-              <button 
-                onClick={handleLogin}
-                className={`px-8 py-3 ${theme.primary} text-white rounded-xl font-bold ${theme.hover} transition-all ${theme.shadow.replace('shadow-lg', 'shadow-xl')} flex items-center gap-2`}
-              >
-                <LogIn className="w-5 h-5" /> {t.loginWithGoogle}
-              </button>
             </div>
           ) : messages.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center text-center max-w-2xl mx-auto space-y-8">
@@ -1468,7 +1390,7 @@ function FixMasterAppContent({
                 animate={{ opacity: 1, y: 0 }}
                 className="flex justify-center py-8"
               >
-                {user ? (
+                {userProfile ? (
                   <div className="flex flex-col md:flex-row gap-4 items-center">
                     <button 
                       onClick={handleSaveDiagnosis}
@@ -1500,12 +1422,6 @@ function FixMasterAppContent({
                     <p className="text-xs text-[#888] leading-relaxed">
                       {t.loginToSave}
                     </p>
-                    <button 
-                      onClick={handleLogin}
-                      className={`w-full py-3 ${theme.primary} text-white rounded-xl text-xs font-bold ${theme.hover} transition-all`}
-                    >
-                      {t.loginWithGoogle}
-                    </button>
                   </div>
                 )}
               </motion.div>
@@ -1608,8 +1524,8 @@ function FixMasterAppContent({
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={user ? (isRecording ? t.listening : t.describeSymptom) : t.loginToStart}
-                disabled={!user}
+                placeholder={userProfile ? (isRecording ? t.listening : t.describeSymptom) : t.loginToStart}
+                disabled={!userProfile}
                 className="flex-1 bg-transparent border-none focus:ring-0 text-xs md:text-sm py-2 md:py-3 resize-none max-h-32 min-h-[40px] disabled:opacity-50"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
@@ -1623,7 +1539,7 @@ function FixMasterAppContent({
                 <button 
                   type="button"
                   onClick={toggleSpeechRecognition}
-                  disabled={!user}
+                  disabled={!userProfile}
                   className={`p-2 md:p-3 transition-all rounded-xl ${isRecording ? 'text-red-500 animate-pulse bg-red-500/10' : 'text-[#555] hover:' + theme.text}`}
                   title={isRecording ? t.stopListening : t.speakProblem}
                 >
@@ -1633,7 +1549,7 @@ function FixMasterAppContent({
                 <button 
                   type="button"
                   onClick={handleGenerateImage}
-                  disabled={loading || !input.trim() || !user}
+                  disabled={loading || !input.trim() || !userProfile}
                   className={`p-2 md:p-3 transition-all rounded-xl ${isGeneratingImage ? 'text-blue-500 animate-pulse bg-blue-500/10' : 'text-[#555] hover:text-blue-500'}`}
                   title={t.generateImage}
                 >

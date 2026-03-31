@@ -16,21 +16,7 @@ import {
   Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  db, 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  updateDoc, 
-  doc, 
-  serverTimestamp, 
-  Timestamp,
-  handleFirestoreError,
-  OperationType,
-  limit,
-  runTransaction
-} from '../firebase';
+import { supabase } from '../lib/supabase';
 import { UserProfile } from '../types';
 
 interface PaymentModalProps {
@@ -110,7 +96,6 @@ export default function PaymentModal({ isOpen, onClose, userProfile, t }: Paymen
   const handleActivate = async () => {
     if (!activationCode.trim() || !userProfile) return;
     
-    // Basic format validation: PREFIX-XXXXXXXX (8 chars for new, 1-8 for old)
     const codePattern = /^(WEEK|MONTH)-[A-Z0-9]{1,10}$/;
     if (!codePattern.test(activationCode.trim())) {
       setFeedback({ type: 'error', message: t.invalidCode });
@@ -121,44 +106,48 @@ export default function PaymentModal({ isOpen, onClose, userProfile, t }: Paymen
     setFeedback(null);
 
     try {
-      let planName = '';
-      // Use a transaction to ensure atomic update
-      await runTransaction(db, async (transaction) => {
-        const codeDocRef = doc(db, 'activationCodes', activationCode.trim());
-        const codeDoc = await transaction.get(codeDocRef);
-        
-        if (!codeDoc.exists()) {
-          throw new Error('INVALID_CODE');
-        }
+      const { data: codeData, error: codeError } = await supabase
+        .from('activation_codes')
+        .select('*')
+        .eq('code', activationCode.trim())
+        .maybeSingle();
 
-        const codeData = codeDoc.data();
-        
-        if (codeData.isUsed) {
-          throw new Error('INVALID_CODE');
-        }
+      if (codeError || !codeData) {
+        throw new Error('INVALID_CODE');
+      }
 
-        const days = codeData.days;
-        planName = days === 7 ? t.weekly : t.monthly;
+      if (codeData.isUsed) {
+        throw new Error('INVALID_CODE');
+      }
 
-        // Calculate new expiration date
-        const now = new Date();
-        const currentExpiry = userProfile.subscriptionExpiresAt?.toDate() || now;
-        const baseDate = currentExpiry > now ? currentExpiry : now;
-        const newExpiry = new Date(baseDate.getTime() + days * 24 * 60 * 60 * 1000);
+      const days = codeData.days;
+      const planName = days === 7 ? t.weekly : t.monthly;
 
-        // Update user profile
-        transaction.update(doc(db, 'users', userProfile.uid), {
+      const now = new Date();
+      const currentExpiry = userProfile.subscriptionExpiresAt ? new Date(userProfile.subscriptionExpiresAt) : now;
+      const baseDate = currentExpiry > now ? currentExpiry : now;
+      const newExpiry = new Date(baseDate.getTime() + days * 24 * 60 * 60 * 1000);
+
+      const { error: userUpdateError } = await supabase
+        .from('users')
+        .update({
           subscriptionType: 'premium',
-          subscriptionExpiresAt: Timestamp.fromDate(newExpiry)
-        });
+          subscriptionExpiresAt: newExpiry.toISOString()
+        })
+        .eq('uid', userProfile.uid);
 
-        // Mark code as used
-        transaction.update(codeDoc.ref, {
+      if (userUpdateError) throw userUpdateError;
+
+      const { error: codeUpdateError } = await supabase
+        .from('activation_codes')
+        .update({
           isUsed: true,
           usedBy: userProfile.uid,
-          usedAt: serverTimestamp()
-        });
-      });
+          usedAt: new Date().toISOString()
+        })
+        .eq('id', codeData.id);
+
+      if (codeUpdateError) throw codeUpdateError;
 
       setActivatedPlanName(planName);
       setShowSuccess(true);

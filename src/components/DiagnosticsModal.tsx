@@ -13,18 +13,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  db, 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  onSnapshot, 
-  deleteDoc, 
-  doc,
-  handleFirestoreError,
-  OperationType
-} from '../firebase';
+import { supabase } from '../lib/supabase';
 import Markdown from 'react-markdown';
 
 interface Diagnosis {
@@ -32,7 +21,7 @@ interface Diagnosis {
   amplifierModel: string;
   symptoms: string;
   recommendations: string;
-  createdAt: any;
+  createdAt: string;
   fullHistory?: any[];
 }
 
@@ -58,41 +47,58 @@ export default function DiagnosticsModal({ isOpen, onClose, userId, t, initialSe
     if (!isOpen || !userId) return;
 
     setLoading(true);
-    const q = query(
-      collection(db, 'diagnostics'),
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc')
-    );
+    
+    const fetchDiagnostics = async () => {
+      const { data, error } = await supabase
+        .from('diagnostics')
+        .select('*')
+        .eq('userId', userId)
+        .order('createdAt', { ascending: false });
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Diagnosis[];
-      setDiagnostics(docs);
-      
-      if (initialSelectedId) {
-        const found = docs.find(d => d.id === initialSelectedId);
-        if (found) setSelectedDiagnosis(found);
+      if (error) {
+        console.error('Error fetching diagnostics:', error);
+      } else {
+        setDiagnostics(data as Diagnosis[]);
+        if (initialSelectedId) {
+          const found = data.find(d => d.id === initialSelectedId);
+          if (found) setSelectedDiagnosis(found as Diagnosis);
+        }
       }
-      
       setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'diagnostics');
-      setLoading(false);
-    });
+    };
 
-    return () => unsubscribe();
-  }, [isOpen, userId]);
+    fetchDiagnostics();
+
+    const channel = supabase
+      .channel('diagnostics-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'diagnostics',
+        filter: `userId=eq.${userId}`
+      }, () => {
+        fetchDiagnostics();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isOpen, userId, initialSelectedId]);
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await deleteDoc(doc(db, 'diagnostics', id));
+      const { error } = await supabase
+        .from('diagnostics')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
       if (selectedDiagnosis?.id === id) setSelectedDiagnosis(null);
       setDeletingId(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `diagnostics/${id}`);
+      console.error('Error deleting diagnosis:', error);
     }
   };
 
@@ -191,7 +197,7 @@ export default function DiagnosticsModal({ isOpen, onClose, userId, t, initialSe
                         {d.amplifierModel}
                       </span>
                       <span className="text-[9px] text-[#444] font-mono">
-                        {d.createdAt?.toDate().toLocaleDateString()}
+                        {new Date(d.createdAt).toLocaleDateString()}
                       </span>
                     </div>
                     <p className="text-[11px] text-[#888] line-clamp-2 leading-relaxed">
@@ -225,7 +231,7 @@ export default function DiagnosticsModal({ isOpen, onClose, userId, t, initialSe
                     </div>
                     <h3 className="text-3xl font-bold text-white tracking-tight">{selectedDiagnosis.amplifierModel}</h3>
                     <div className="flex items-center gap-4 text-[10px] text-[#555] font-mono">
-                      <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {selectedDiagnosis.createdAt?.toDate().toLocaleString()}</span>
+                      <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(selectedDiagnosis.createdAt).toLocaleString()}</span>
                       <span className="flex items-center gap-1"><FileText className="w-3 h-3" /> ID: {selectedDiagnosis.id.substring(0,8)}</span>
                     </div>
                   </div>

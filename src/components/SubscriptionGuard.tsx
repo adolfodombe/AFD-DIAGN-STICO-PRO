@@ -29,13 +29,13 @@ export default function SubscriptionGuard({ children, userProfile, loading, onOp
     if (!userProfile) return;
 
     const updateCountdown = () => {
-      if (userProfile.subscriptionType === 'lifetime') {
-        setTimeLeft(t.lifetime);
+      if (userProfile.subscriptionType === 'admin' || userProfile.subscriptionType === 'lifetime') {
+        setTimeLeft(t.lifetimeAccess);
         setIsExpired(false);
         return;
       }
 
-      const expiry = userProfile.subscriptionExpiresAt?.toDate();
+      const expiry = userProfile.subscriptionExpiresAt ? new Date(userProfile.subscriptionExpiresAt) : null;
       if (!expiry) {
         setIsExpired(true);
         return;
@@ -78,7 +78,7 @@ export default function SubscriptionGuard({ children, userProfile, loading, onOp
     return <>{children}</>; // Let App.tsx handle the login screen
   }
 
-  const isAccessBlocked = isExpired && userProfile.subscriptionType !== 'lifetime';
+  const isAccessBlocked = isExpired && userProfile.subscriptionType !== 'admin' && userProfile.subscriptionType !== 'premium' && userProfile.subscriptionType !== 'lifetime';
 
   return (
     <>
@@ -91,7 +91,7 @@ export default function SubscriptionGuard({ children, userProfile, loading, onOp
             p-3 rounded-2xl border backdrop-blur-md shadow-xl flex items-center gap-3
             ${isExpired 
               ? 'bg-red-500/10 border-red-500/20 text-red-500' 
-              : userProfile.subscriptionType === 'premium' || userProfile.subscriptionType === 'lifetime'
+              : userProfile.subscriptionType === 'premium' || userProfile.subscriptionType === 'admin'
                 ? 'bg-green-500/10 border-green-500/20 text-green-500'
                 : 'bg-orange-500/10 border-orange-500/20 text-orange-500'}
           `}
@@ -101,8 +101,8 @@ export default function SubscriptionGuard({ children, userProfile, loading, onOp
           </div>
           <div>
             <p className="text-[10px] uppercase tracking-widest font-bold opacity-70">
-              {userProfile.subscriptionType === 'lifetime' ? t.lifetimePlan : 
-               userProfile.subscriptionType === 'premium' ? t.premiumPlan : t.freeTrial}
+              {userProfile.subscriptionType === 'admin' ? t.lifetimePlan : 
+               userProfile.subscriptionType === 'premium' ? t.premiumPlan : t.freePlan}
             </p>
             <p className="text-xs font-mono font-bold">{timeLeft}</p>
           </div>
@@ -142,10 +142,10 @@ export default function SubscriptionGuard({ children, userProfile, loading, onOp
 
               <div className="space-y-3">
                 <h2 className="text-3xl font-bold text-white">
-                  {userProfile.subscriptionType === 'trial' ? t.trialEnded : t.accessExpired}
+                  {userProfile.subscriptionType === 'free' ? t.trialEnded : t.accessExpired}
                 </h2>
                 <p className="text-[#666] text-sm leading-relaxed">
-                  {userProfile.subscriptionType === 'trial' 
+                  {userProfile.subscriptionType === 'free' 
                     ? t.trialEndedDesc
                     : t.accessExpiredDesc}
                 </p>
